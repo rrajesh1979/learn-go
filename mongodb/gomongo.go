@@ -22,16 +22,13 @@ func main() {
 	if uri == "" {
 		log.Fatal("You must set your 'MONGODB_URI' environmental variable. See\n\t https://docs.mongodb.com/drivers/go/current/usage-examples/#environment-variable")
 	}
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
+
+	client, closeConnection, err := getMongoConnection(uri)
 	if err != nil {
 		panic(err)
+	} else {
+		defer closeConnection()
 	}
-
-	defer func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			panic(err)
-		}
-	}()
 
 	coll := client.Database("sample_mflix").Collection("movies")
 	title := "Back to the Future"
@@ -51,4 +48,13 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("%s\n", jsonData)
+}
+
+func getMongoConnection(uri string) (*mongo.Client, func(), error) {
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
+	return client, func() {
+		if err := client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}, err
 }
